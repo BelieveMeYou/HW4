@@ -1,76 +1,85 @@
-package com.ecs160.hw3;
+package com.ecs160.hw1;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
+import com.google.gson.*;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-//Parser class responsible for parsing through the json data of posts and replies of the post
+//Parser class responsible for parsing through the json data of posts and extracts them into threads and replies
 public class Parser {
-    public List<Post> parse(String filePath) throws Exception {
-        List<Post> posts = new ArrayList<>();
+    //parses the json file and extracts them into posts as a PostComposite object
+    public List<PostComposite> parse(String filePath) throws Exception {
+        List<PostComposite> posts = new ArrayList<>();
+        Map<String, PostComposite> postMap = new HashMap<>(); // Map to track posts by URI
+        
         try (FileReader reader = new FileReader(filePath)) {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
             JsonArray feed = root.getAsJsonArray("feed");
-
+            
+            // First pass: Create all posts
             for (JsonElement item : feed) {
-                JsonObject thread = item.getAsJsonObject().getAsJsonObject("thread");
-                if (thread != null && thread.has("post")) {
-                    JsonObject threadPost = thread.getAsJsonObject("post");
-                    Post post = parsePost(threadPost);
-
-                    if (thread.has("replies") && thread.get("replies").isJsonArray()) {
-                        JsonArray repliesArray = thread.getAsJsonArray("replies");
-                        for (JsonElement replyElement : repliesArray) {
-                            JsonObject replyJson = replyElement.getAsJsonObject().getAsJsonObject("post");
-                            Post reply = parsePost(replyJson);
-                            post.addReply(reply);
-                        }
-                    }
-                    posts.add(post);
+                if (item.isJsonObject() && item.getAsJsonObject().has("thread")) {
+                    JsonObject threadObj = item.getAsJsonObject().getAsJsonObject("thread");
+                    processThreadRecursively(threadObj, posts, postMap, null);
                 }
+            }
+            
+            // Log statistics for debugging
+            int replyCount = 0;
+            for (PostComposite post : posts) {
+                replyCount += post.getReplies().size();
             }
         }
         return posts;
     }
-
-    private Post parsePost(JsonObject postJson) {
-        Post post = new Post();
-        post.setContent(postJson.getAsJsonObject("record").get("text").getAsString());
-
-        if (postJson.has("postId")) {
-            postIdFieldSetter(post, postJson.get("postId").getAsInt());
+    
+    private void processThreadRecursively(JsonObject threadObj, List<PostComposite> posts, 
+                                         Map<String, PostComposite> postMap, PostComposite parent) {
+        if (!threadObj.has("post") || threadObj.get("post").isJsonNull()) {
+            return;
         }
-
-        if (postJson.has("likeCount")) {
-            post.setLikeCount(postJson.get("likeCount").getAsInt());
-        } else {
-            post.setLikeCount(0);
+        
+        JsonObject postObj = threadObj.getAsJsonObject("post");
+        PostComposite post = new Gson().fromJson(postObj, PostComposite.class);
+        
+        if (post == null) {
+            return;
         }
-
-        if (postJson.has("replies")) {
-            JsonArray repliesArray = postJson.getAsJsonArray("replies");
-            for (JsonElement replyElement : repliesArray) {
-                JsonObject replyJson = replyElement.getAsJsonObject();
-                Post reply = parsePost(replyJson);
-                post.addReply(reply);
+        
+        // Generate a unique ID for the post if it doesn't have one
+        Long postId = (long) (posts.size() + 1);
+        post.setId(postId);
+        post.readPost();
+        
+        // Store post in collection and map
+        posts.add(post);
+        
+        if (postObj.has("uri") && !postObj.get("uri").isJsonNull()) {
+            String uri = postObj.get("uri").getAsString();
+            postMap.put(uri, post);
+        }
+        
+        // If this post has a parent, establish the relationship
+        if (parent != null) {
+            post.setParentId(parent.getId());
+            parent.addReply(post);
+        }
+        
+        // Process all replies
+        if (threadObj.has("replies") && threadObj.get("replies").isJsonArray()) {
+            JsonArray replies = threadObj.getAsJsonArray("replies");
+            for (JsonElement replyElement : replies) {
+                if (replyElement.isJsonObject()) {
+                    processThreadRecursively(
+                        replyElement.getAsJsonObject(), 
+                        posts, 
+                        postMap, 
+                        post  // Current post is the parent of its replies
+                    );
+                }
             }
-        }
-        return post;
-    }
-
-
-    private void postIdFieldSetter(Post post, Integer id) {
-        try {
-            var field = Post.class.getDeclaredField("postId");
-            field.setAccessible(true);
-            field.set(post, id);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException("Failed to set postId via reflection", e);
         }
     }
 }
