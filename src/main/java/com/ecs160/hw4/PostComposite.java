@@ -1,4 +1,4 @@
-package com.ecs160.hw1;
+package com.ecs160.hw4;
 
 import com.google.gson.annotations.SerializedName;
 import java.time.Instant;
@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+
 
 // Implementation for both single posts and thread posts
 public class PostComposite implements Post {  
@@ -17,6 +18,7 @@ public class PostComposite implements Post {
     private Long parentId;
     private int postLength;
     private int wordCount;
+    private int likeCount;
     private transient Instant timestamp;
     private final List<Post> replies;
     
@@ -34,6 +36,7 @@ public class PostComposite implements Post {
     public PostComposite() {
         this.replies = new ArrayList<>();
         this.record = new Record();
+        this.likeCount = 0;
     }
 
     public String getContent() {
@@ -165,5 +168,13 @@ public class PostComposite implements Post {
                 }
             }
         }
+    }
+
+    public int getLikeCount() {
+        return likeCount;
+    }
+
+    public void setLikeCount(int likeCount) {
+        this.likeCount = likeCount;
     }
 }

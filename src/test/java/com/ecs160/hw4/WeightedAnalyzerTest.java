@@ -1,8 +1,12 @@
-package com.ecs160.hw1;
+package com.ecs160.hw4;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.ecs160.hw4.Analyzer;
+import com.ecs160.hw4.PostComposite;
+import com.ecs160.hw4.Redis;
 
 import java.time.Instant;
 import java.util.ArrayList;

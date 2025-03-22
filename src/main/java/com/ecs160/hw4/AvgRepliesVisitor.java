@@ -1,4 +1,4 @@
-package com.ecs160.hw1;
+package com.ecs160.hw4;
 
 public class AvgRepliesVisitor extends StatsVisitor {
     private int totalReplies = 0;

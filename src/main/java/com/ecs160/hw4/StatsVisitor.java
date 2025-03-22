@@ -1,4 +1,4 @@
-package com.ecs160.hw1;
+package com.ecs160.hw4;
 
 abstract class StatsVisitor {
     abstract void visit(Post post);
